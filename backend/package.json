@@ -1,0 +1,15 @@
+{
+  "name": "projeto-integrador-backend",
+  "version": "1.0.0",
+  "description": "Backend do Projeto Integrador - Faculdade Gran",
+  "main": "app.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
