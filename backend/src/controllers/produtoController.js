@@ -1,12 +1,13 @@
-const db = require('../db');
+const { loadData, saveData } = require('../store');
 
 function listar(req, res) {
-  const produtos = db.prepare('SELECT * FROM produtos').all();
-  res.json(produtos);
+  const data = loadData();
+  res.json(data.produtos);
 }
 
 function buscarPorId(req, res) {
-  const produto = db.prepare('SELECT * FROM produtos WHERE id = ?').get(req.params.id);
+  const data = loadData();
+  const produto = data.produtos.find((p) => p.id === Number(req.params.id));
   if (!produto) return res.status(404).json({ erro: 'Produto não encontrado' });
   res.json(produto);
 }
@@ -16,34 +17,43 @@ function criar(req, res) {
   if (!nome || preco === undefined) {
     return res.status(400).json({ erro: 'Nome e preço são obrigatórios' });
   }
-  const info = db
-    .prepare('INSERT INTO produtos (nome, descricao, preco, codigoBarras) VALUES (?, ?, ?, ?)')
-    .run(nome, descricao || null, preco, codigoBarras || null);
-  const produto = db.prepare('SELECT * FROM produtos WHERE id = ?').get(info.lastInsertRowid);
+  const data = loadData();
+  const produto = {
+    id: data.nextIds.produtos++,
+    nome,
+    descricao: descricao || null,
+    preco,
+    codigoBarras: codigoBarras || null,
+  };
+  data.produtos.push(produto);
+  saveData(data);
   res.status(201).json(produto);
 }
 
 function atualizar(req, res) {
-  const { nome, descricao, preco, codigoBarras } = req.body;
-  const existente = db.prepare('SELECT * FROM produtos WHERE id = ?').get(req.params.id);
-  if (!existente) return res.status(404).json({ erro: 'Produto não encontrado' });
+  const data = loadData();
+  const produto = data.produtos.find((p) => p.id === Number(req.params.id));
+  if (!produto) return res.status(404).json({ erro: 'Produto não encontrado' });
 
-  db.prepare(
-    'UPDATE produtos SET nome = ?, descricao = ?, preco = ?, codigoBarras = ? WHERE id = ?'
-  ).run(
-    nome ?? existente.nome,
-    descricao ?? existente.descricao,
-    preco ?? existente.preco,
-    codigoBarras ?? existente.codigoBarras,
-    req.params.id
-  );
-  const produto = db.prepare('SELECT * FROM produtos WHERE id = ?').get(req.params.id);
+  const { nome, descricao, preco, codigoBarras } = req.body;
+  produto.nome = nome ?? produto.nome;
+  produto.descricao = descricao ?? produto.descricao;
+  produto.preco = preco ?? produto.preco;
+  produto.codigoBarras = codigoBarras ?? produto.codigoBarras;
+
+  saveData(data);
   res.json(produto);
 }
 
 function deletar(req, res) {
-  const info = db.prepare('DELETE FROM produtos WHERE id = ?').run(req.params.id);
-  if (info.changes === 0) return res.status(404).json({ erro: 'Produto não encontrado' });
+  const data = loadData();
+  const id = Number(req.params.id);
+  const idx = data.produtos.findIndex((p) => p.id === id);
+  if (idx === -1) return res.status(404).json({ erro: 'Produto não encontrado' });
+
+  data.produtos.splice(idx, 1);
+  data.produtoFornecedor = data.produtoFornecedor.filter((pf) => pf.produtoId !== id);
+  saveData(data);
   res.status(204).send();
 }
 

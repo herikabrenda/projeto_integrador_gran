@@ -1,0 +1,9 @@
+run = "cd backend && npm install && node app.js"
+entrypoint = "backend/app.js"
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 3000
+externalPort = 80

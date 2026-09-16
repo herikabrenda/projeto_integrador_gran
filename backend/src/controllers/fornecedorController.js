@@ -1,12 +1,13 @@
-const db = require('../db');
+const { loadData, saveData } = require('../store');
 
 function listar(req, res) {
-  const fornecedores = db.prepare('SELECT * FROM fornecedores').all();
-  res.json(fornecedores);
+  const data = loadData();
+  res.json(data.fornecedores);
 }
 
 function buscarPorId(req, res) {
-  const fornecedor = db.prepare('SELECT * FROM fornecedores WHERE id = ?').get(req.params.id);
+  const data = loadData();
+  const fornecedor = data.fornecedores.find((f) => f.id === Number(req.params.id));
   if (!fornecedor) return res.status(404).json({ erro: 'Fornecedor não encontrado' });
   res.json(fornecedor);
 }
@@ -16,34 +17,43 @@ function criar(req, res) {
   if (!nome || !cnpj) {
     return res.status(400).json({ erro: 'Nome e CNPJ são obrigatórios' });
   }
-  const info = db
-    .prepare('INSERT INTO fornecedores (nome, cnpj, endereco, contato) VALUES (?, ?, ?, ?)')
-    .run(nome, cnpj, endereco || null, contato || null);
-  const fornecedor = db.prepare('SELECT * FROM fornecedores WHERE id = ?').get(info.lastInsertRowid);
+  const data = loadData();
+  const fornecedor = {
+    id: data.nextIds.fornecedores++,
+    nome,
+    cnpj,
+    endereco: endereco || null,
+    contato: contato || null,
+  };
+  data.fornecedores.push(fornecedor);
+  saveData(data);
   res.status(201).json(fornecedor);
 }
 
 function atualizar(req, res) {
-  const { nome, cnpj, endereco, contato } = req.body;
-  const existente = db.prepare('SELECT * FROM fornecedores WHERE id = ?').get(req.params.id);
-  if (!existente) return res.status(404).json({ erro: 'Fornecedor não encontrado' });
+  const data = loadData();
+  const fornecedor = data.fornecedores.find((f) => f.id === Number(req.params.id));
+  if (!fornecedor) return res.status(404).json({ erro: 'Fornecedor não encontrado' });
 
-  db.prepare(
-    'UPDATE fornecedores SET nome = ?, cnpj = ?, endereco = ?, contato = ? WHERE id = ?'
-  ).run(
-    nome ?? existente.nome,
-    cnpj ?? existente.cnpj,
-    endereco ?? existente.endereco,
-    contato ?? existente.contato,
-    req.params.id
-  );
-  const fornecedor = db.prepare('SELECT * FROM fornecedores WHERE id = ?').get(req.params.id);
+  const { nome, cnpj, endereco, contato } = req.body;
+  fornecedor.nome = nome ?? fornecedor.nome;
+  fornecedor.cnpj = cnpj ?? fornecedor.cnpj;
+  fornecedor.endereco = endereco ?? fornecedor.endereco;
+  fornecedor.contato = contato ?? fornecedor.contato;
+
+  saveData(data);
   res.json(fornecedor);
 }
 
 function deletar(req, res) {
-  const info = db.prepare('DELETE FROM fornecedores WHERE id = ?').run(req.params.id);
-  if (info.changes === 0) return res.status(404).json({ erro: 'Fornecedor não encontrado' });
+  const data = loadData();
+  const id = Number(req.params.id);
+  const idx = data.fornecedores.findIndex((f) => f.id === id);
+  if (idx === -1) return res.status(404).json({ erro: 'Fornecedor não encontrado' });
+
+  data.fornecedores.splice(idx, 1);
+  data.produtoFornecedor = data.produtoFornecedor.filter((pf) => pf.fornecedorId !== id);
+  saveData(data);
   res.status(204).send();
 }
 
