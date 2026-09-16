@@ -1,8 +1,9 @@
 run = "cd backend && npm install && node app.js"
 entrypoint = "backend/app.js"
+modules = ["nodejs-20", "web"]
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-25_05"
 
 [[ports]]
 localPort = 3000
